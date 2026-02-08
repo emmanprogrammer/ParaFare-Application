@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1064889172258",
+    "project_id": "parafareapplication",
+    "storage_bucket": "parafareapplication.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1064889172258:android:22d77b8dcc7408ef8c657b",
+        "android_client_info": {
+          "package_name": "com.example.parafare_application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyWSwiIQmxWRTJxfaauDeVB4fXL2LpG5M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
