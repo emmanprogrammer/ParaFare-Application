@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:collection/collection.dart';
 
 import 'tricycle_network.dart';
@@ -13,15 +15,38 @@ class PathResult {
 }
 
 class PathfindingService {
-  const PathfindingService({
+  PathfindingService({
     this.nodes = TricycleNetwork.nodes,
     this.edges = TricycleNetwork.edges,
+    this.cacheSize = 100,
   });
 
   final List<TricycleNode> nodes;
   final List<TricycleEdge> edges;
+  final int cacheSize;
+
+  // Similar intent to the firmware distance cache: avoid recomputing repeated pairs.
+  final LinkedHashMap<String, PathResult?> _cache = LinkedHashMap();
 
   PathResult? shortestPath({
+    required String startNodeId,
+    required String endNodeId,
+  }) {
+    final cacheKey = _cacheKey(startNodeId, endNodeId);
+    final cached = _cache[cacheKey];
+    if (cached != null || _cache.containsKey(cacheKey)) {
+      return cached;
+    }
+
+    final computed = _runDijkstra(startNodeId: startNodeId, endNodeId: endNodeId);
+    _cache[cacheKey] = computed;
+    if (_cache.length > cacheSize) {
+      _cache.remove(_cache.keys.first);
+    }
+    return computed;
+  }
+
+  PathResult? _runDijkstra({
     required String startNodeId,
     required String endNodeId,
   }) {
@@ -80,6 +105,8 @@ class PathfindingService {
       totalDistanceKm: destinationDistance,
     );
   }
+
+  String _cacheKey(String a, String b) => a.compareTo(b) <= 0 ? '$a|$b' : '$b|$a';
 
   Map<String, List<_AdjEdge>> _buildAdjacency() {
     final map = <String, List<_AdjEdge>>{};

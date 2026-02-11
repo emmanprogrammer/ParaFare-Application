@@ -40,13 +40,13 @@ Yes, you can build the node graph from OpenStreetMap data.
 A generator script is included:
 
 ```bash
-python scripts/generate_gensan_network.py --from-overpass
+python scripts/generate_gensan_network.py --from-overpass --anchor-spacing-meters 40
 ```
 
 If Overpass access is blocked on your network, fetch/save the Overpass JSON externally and run:
 
 ```bash
-python scripts/generate_gensan_network.py --from-file <path-to-overpass-json>
+python scripts/generate_gensan_network.py --from-file <path-to-overpass-json> --anchor-spacing-meters 30
 ```
 
 This rewrites:
@@ -54,6 +54,10 @@ This rewrites:
 - `lib/features/dispatch/simulation/generated/gensan_network_data.dart`
 
 The app then uses those generated intersection nodes and weighted edges for shortest-path simulation/fare calculation.
+
+`--anchor-spacing-meters` controls node granularity (smaller value = denser/smaller nodes like your firmware graph approach).
+
+Fare logic is preserved and unchanged from your hardware rule set (`<=4km => PHP15`, then `+ceil(distance-4)`, with discount/adjustment bounds).
 
 ## Getting Started
 

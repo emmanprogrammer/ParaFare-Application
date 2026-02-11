@@ -60,7 +60,7 @@ final tricycleNodesProvider = Provider<List<TricycleNode>>((ref) {
 });
 
 final pathfindingServiceProvider = Provider<PathfindingService>((ref) {
-  return const PathfindingService();
+  return PathfindingService();
 });
 
 final fareCalculatorProvider = Provider<FareCalculator>((ref) {
