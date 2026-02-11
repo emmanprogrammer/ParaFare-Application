@@ -10,14 +10,21 @@ class MapView extends ConsumerWidget {
     super.key,
     this.onTap,
     this.pickupLocation,
+    this.showLiveLocation = true,
+    this.routePoints = const [],
+    this.extraMarkers = const [],
   });
 
   final void Function(LatLng location)? onTap;
   final LatLng? pickupLocation;
+  final bool showLiveLocation;
+  final List<LatLng> routePoints;
+  final List<Marker> extraMarkers;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locationAsync = ref.watch(locationStreamProvider);
+    final tileConfig = ref.watch(mapTileConfigProvider);
 
     return FlutterMap(
       options: MapOptions(
@@ -27,10 +34,20 @@ class MapView extends ConsumerWidget {
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: tileConfig.urlTemplate,
           userAgentPackageName: 'com.parafare.app',
-          // Future extension: swap to offline tile cache provider here.
+          // Extension point: wire MBTiles/file tile provider for fully offline map packs.
         ),
+        if (routePoints.length >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: routePoints,
+                strokeWidth: 4,
+                color: Colors.deepPurple,
+              ),
+            ],
+          ),
         MarkerLayer(
           markers: [
             if (pickupLocation != null)
@@ -38,14 +55,16 @@ class MapView extends ConsumerWidget {
                 point: pickupLocation!,
                 child: const Icon(Icons.place, color: Colors.red, size: 32),
               ),
-            locationAsync.when(
-              data: (position) => Marker(
-                point: LatLng(position.latitude, position.longitude),
-                child: const Icon(Icons.my_location, color: Colors.blue),
+            ...extraMarkers,
+            if (showLiveLocation)
+              locationAsync.when(
+                data: (position) => Marker(
+                  point: LatLng(position.latitude, position.longitude),
+                  child: const Icon(Icons.my_location, color: Colors.blue),
+                ),
+                loading: () => null,
+                error: (_, __) => null,
               ),
-              loading: () => null,
-              error: (_, __) => null,
-            ),
           ].whereType<Marker>().toList(),
         ),
       ],

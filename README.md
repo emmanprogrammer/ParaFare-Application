@@ -2,6 +2,36 @@
 
 Production-ready Flutter scaffold for a tricycle dispatch and fare platform with Passenger and Driver modes.
 
+## What is implemented now
+
+- Feature-first Flutter architecture with Riverpod + GoRouter.
+- Firebase/Firestore dispatch scaffolding for rider and driver flows.
+- Node-based trip simulator for testing the fare and shortest-path logic without GPS.
+- Map tile source toggle (`online` vs `offline/local`) to prepare for offline map packs.
+
+## Trip Simulation (manual testing mode)
+
+Open **Trip Simulation (Node-Based)** from the mode selector.
+
+This mode lets you test the core function set you requested first:
+
+1. Select origin and destination nodes (manual user input).
+2. Compute shortest path using Dijkstra on a tricycle-accessible graph.
+3. Calculate fare using the hardware-aligned rules:
+   - Base: PHP 15 for 0–4 km
+   - Additional: `+ ceil(distance - 4)` beyond 4 km
+   - Optional 20% discount, bounded by min fare PHP 10
+   - Manual adjustment with final fare clamped to PHP 10–100
+
+## Online + Offline map strategy
+
+The map layer currently supports two modes:
+
+- **Online**: OpenStreetMap tiles (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`)
+- **Offline/local**: placeholder local tile URL (`http://127.0.0.1:8080/{z}/{x}/{y}.png`)
+
+For production offline maps, replace the local tile source with your chosen offline tile host or MBTiles-backed provider.
+
 ## Getting Started
 
 ### 1) Prerequisites
@@ -39,66 +69,40 @@ firebase login
 flutterfire configure
 ```
 
-**Manual setup (no FlutterFire CLI):**
-
-1. Create a Firebase project.
-2. Add your Android/iOS apps in Firebase console.
-3. Download the config files:
-   - `google-services.json` → `android/app/`
-   - `GoogleService-Info.plist` → `ios/Runner/`
-4. Follow the official guide: https://firebase.google.com/docs/flutter/setup
-
-### 4) Run the app
+### 4) Run
 
 ```bash
 flutter run
 ```
 
-## Common Issues
+## Common Setup Issues
 
-### `FlutterAppRequiredException` when running `flutterfire configure`
+### `FlutterAppRequiredException: The current directory does not appear to be a Flutter application project`
 
-Make sure you are in the project root (where `pubspec.yaml` lives) before running the command.
+You are not in the Flutter project root. Ensure `pubspec.yaml` exists in your current folder.
 
-```bash
-cd /path/to/ParaFare-Application
-flutterfire configure
-```
+### `firebase : The term 'firebase' is not recognized`
 
-### `firebase` or `npm` not recognized on Windows
-
-Install Node.js (LTS) from https://nodejs.org, then reopen PowerShell and run:
+Install Firebase CLI:
 
 ```bash
 npm install -g firebase-tools
-firebase login
 ```
 
-### PowerShell script execution policy blocks `npm`
+### `npm : ... npm.ps1 cannot be loaded because running scripts is disabled`
 
-Run PowerShell as Administrator and execute:
+On Windows PowerShell, run:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-Then rerun:
+Then retry Firebase CLI install.
 
-```powershell
-npm install -g firebase-tools
+### `flutterfire : command not recognized`
+
+Add this to your Windows PATH and restart terminal:
+
+```text
+C:\Users\<your-user>\AppData\Local\Pub\Cache\bin
 ```
-
-## Project Structure
-
-```
-lib/
-  core/
-  data/
-  features/
-  main.dart
-```
-
-## Notes
-
-- This is a scaffold intended for extension. Business logic lives in controllers/repositories, not widgets.
-- Firebase initialization is centralized in `lib/core/services/firebase_service.dart`.

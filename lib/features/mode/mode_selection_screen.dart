@@ -30,6 +30,12 @@ class ModeSelectionScreen extends StatelessWidget {
                 onPressed: () => context.go('/driver'),
                 child: const Text(AppStrings.driverMode),
               ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => context.go('/trip'),
+                icon: const Icon(Icons.alt_route),
+                label: const Text('Trip Simulation (Node-Based)'),
+              ),
             ],
           ),
         ),
