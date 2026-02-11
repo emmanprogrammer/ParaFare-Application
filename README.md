@@ -32,6 +32,29 @@ The map layer currently supports two modes:
 
 For production offline maps, replace the local tile source with your chosen offline tile host or MBTiles-backed provider.
 
+
+## OSM → Gensan intersection nodes workflow
+
+Yes, you can build the node graph from OpenStreetMap data.
+
+A generator script is included:
+
+```bash
+python scripts/generate_gensan_network.py --from-overpass
+```
+
+If Overpass access is blocked on your network, fetch/save the Overpass JSON externally and run:
+
+```bash
+python scripts/generate_gensan_network.py --from-file <path-to-overpass-json>
+```
+
+This rewrites:
+
+- `lib/features/dispatch/simulation/generated/gensan_network_data.dart`
+
+The app then uses those generated intersection nodes and weighted edges for shortest-path simulation/fare calculation.
+
 ## Getting Started
 
 ### 1) Prerequisites
