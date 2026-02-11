@@ -77,6 +77,23 @@ flutter run
 
 ## Common Setup Issues
 
+
+### App stuck on splash/logo
+
+If the app never moves past the launch image, Firebase initialization usually failed before first screen render.
+
+Fix sequence:
+
+```bash
+flutter create .
+flutterfire configure
+flutter clean
+flutter pub get
+flutter run
+```
+
+When `flutterfire configure` asks for Android package name, do not leave it blank (example: `com.emman.parafare`).
+
 ### `FlutterAppRequiredException: The current directory does not appear to be a Flutter application project`
 
 You are not in the Flutter project root. Ensure `pubspec.yaml` exists in your current folder.
