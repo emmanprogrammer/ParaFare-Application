@@ -21,33 +21,31 @@ class AddRideScreen extends ConsumerStatefulWidget {
 class _AddRideScreenState extends ConsumerState<AddRideScreen> {
   final _originLabel = TextEditingController();
   final _destinationLabel = TextEditingController();
-  final _originLat = TextEditingController();
-  final _originLng = TextEditingController();
-  final _destinationLat = TextEditingController();
-  final _destinationLng = TextEditingController();
 
-  FarePreview? preview;
+  LatLng? _origin;
+  LatLng? _destination;
+  bool _pickOriginNext = true;
+  bool _showDebugSnap = false;
+  FarePreview? _preview;
 
   @override
   void dispose() {
     _originLabel.dispose();
     _destinationLabel.dispose();
-    _originLat.dispose();
-    _originLng.dispose();
-    _destinationLat.dispose();
-    _destinationLng.dispose();
     super.dispose();
   }
 
   Future<void> _useCurrentGpsAsOrigin() async {
     try {
       final pos = await ref.read(mvpControllerProvider.notifier).getCurrentPosition();
-      _originLat.text = pos.latitude.toStringAsFixed(6);
-      _originLng.text = pos.longitude.toStringAsFixed(6);
-      if (_originLabel.text.isEmpty) {
-        _originLabel.text = 'Current GPS';
-      }
-      setState(() {});
+      setState(() {
+        _origin = LatLng(pos.latitude, pos.longitude);
+        _pickOriginNext = false;
+        if (_originLabel.text.isEmpty) {
+          _originLabel.text = 'Current GPS';
+        }
+      });
+      _computePreview();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,49 +54,49 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
     }
   }
 
-  void _computePreview() {
-    final oLat = double.tryParse(_originLat.text);
-    final oLng = double.tryParse(_originLng.text);
-    final dLat = double.tryParse(_destinationLat.text);
-    final dLng = double.tryParse(_destinationLng.text);
+  void _handleMapTap(LatLng location) {
+    setState(() {
+      if (_pickOriginNext) {
+        _origin = location;
+        _pickOriginNext = false;
+      } else {
+        _destination = location;
+      }
+    });
+    _computePreview();
+  }
 
-    if (oLat == null || oLng == null || dLat == null || dLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide valid origin/destination coordinates.')),
-      );
+  void _computePreview() {
+    if (_origin == null || _destination == null) {
       return;
     }
 
     final p = ref.read(mvpControllerProvider.notifier).calculatePreview(
-          originLat: oLat,
-          originLng: oLng,
-          destinationLat: dLat,
-          destinationLng: dLng,
+          originLat: _origin!.latitude,
+          originLng: _origin!.longitude,
+          destinationLat: _destination!.latitude,
+          destinationLng: _destination!.longitude,
         );
 
-    setState(() => preview = p);
+    setState(() => _preview = p);
   }
 
   Future<void> _assignRide() async {
-    final p = preview;
-    if (p == null) {
-      _computePreview();
-      if (preview == null) return;
+    if (_origin == null || _destination == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select both origin and destination on map.')),
+      );
+      return;
     }
-
-    final oLat = double.parse(_originLat.text);
-    final oLng = double.parse(_originLng.text);
-    final dLat = double.parse(_destinationLat.text);
-    final dLng = double.parse(_destinationLng.text);
 
     await ref.read(mvpControllerProvider.notifier).assignRideToSlot(
           slotIndex: widget.slotIndex,
           originLabel: _originLabel.text.trim().isEmpty ? 'Origin' : _originLabel.text.trim(),
           destinationLabel: _destinationLabel.text.trim().isEmpty ? 'Destination' : _destinationLabel.text.trim(),
-          originLat: oLat,
-          originLng: oLng,
-          destinationLat: dLat,
-          destinationLng: dLng,
+          originLat: _origin!.latitude,
+          originLng: _origin!.longitude,
+          destinationLat: _destination!.latitude,
+          destinationLng: _destination!.longitude,
         );
 
     if (!mounted) return;
@@ -107,11 +105,6 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final oLat = double.tryParse(_originLat.text);
-    final oLng = double.tryParse(_originLng.text);
-    final dLat = double.tryParse(_destinationLat.text);
-    final dLng = double.tryParse(_destinationLng.text);
-
     return Scaffold(
       appBar: AppBar(title: Text('Add Ride • Passenger ${widget.slotIndex}')),
       body: Column(
@@ -119,20 +112,31 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
           Expanded(
             child: MapView(
               showLiveLocation: true,
+              onTap: _handleMapTap,
               routePoints: [
-                if (oLat != null && oLng != null) LatLng(oLat, oLng),
-                if (dLat != null && dLng != null) LatLng(dLat, dLng),
+                if (_origin != null) _origin!,
+                if (_destination != null) _destination!,
               ],
               extraMarkers: [
-                if (oLat != null && oLng != null)
+                if (_origin != null)
                   Marker(
-                    point: LatLng(oLat, oLng),
+                    point: _origin!,
                     child: const Icon(Icons.trip_origin, color: Colors.green, size: 30),
                   ),
-                if (dLat != null && dLng != null)
+                if (_destination != null)
                   Marker(
-                    point: LatLng(dLat, dLng),
+                    point: _destination!,
                     child: const Icon(Icons.location_pin, color: Colors.red, size: 32),
+                  ),
+                if (_showDebugSnap && _preview != null)
+                  Marker(
+                    point: LatLng(_preview!.startSnapLat, _preview!.startSnapLng),
+                    child: const Icon(Icons.circle, color: Colors.orange, size: 18),
+                  ),
+                if (_showDebugSnap && _preview != null)
+                  Marker(
+                    point: LatLng(_preview!.endSnapLat, _preview!.endSnapLng),
+                    child: const Icon(Icons.circle, color: Colors.deepOrange, size: 18),
                   ),
               ],
             ),
@@ -144,20 +148,9 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
                 TextField(controller: _originLabel, decoration: const InputDecoration(labelText: 'Origin label')),
                 TextField(controller: _destinationLabel, decoration: const InputDecoration(labelText: 'Destination label')),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: TextField(controller: _originLat, decoration: const InputDecoration(labelText: 'Origin Lat'))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: _originLng, decoration: const InputDecoration(labelText: 'Origin Lng'))),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(child: TextField(controller: _destinationLat, decoration: const InputDecoration(labelText: 'Dest Lat'))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: _destinationLng, decoration: const InputDecoration(labelText: 'Dest Lng'))),
-                  ],
-                ),
+                Text(_pickOriginNext
+                    ? 'Tap map to choose ORIGIN first.'
+                    : 'Tap map to choose DESTINATION.'),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -167,9 +160,14 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
                       icon: const Icon(Icons.my_location),
                       label: const Text('Use Current GPS as Origin'),
                     ),
-                    FilledButton(
-                      onPressed: _computePreview,
-                      child: const Text('Preview Route/Fare'),
+                    OutlinedButton(
+                      onPressed: () => setState(() {
+                        _origin = null;
+                        _destination = null;
+                        _pickOriginNext = true;
+                        _preview = null;
+                      }),
+                      child: const Text('Reset points'),
                     ),
                     FilledButton(
                       onPressed: _assignRide,
@@ -177,11 +175,19 @@ class _AddRideScreenState extends ConsumerState<AddRideScreen> {
                     ),
                   ],
                 ),
-                if (preview != null) ...[
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Debug snap overlay'),
+                  value: _showDebugSnap,
+                  onChanged: (v) => setState(() => _showDebugSnap = v),
+                ),
+                if (_preview != null) ...[
                   const SizedBox(height: 8),
-                  Text('Estimated Distance: ${preview!.distanceKm.toStringAsFixed(2)} km'),
-                  Text('Estimated Time: ${preview!.estimatedMinutes} min'),
-                  Text('Estimated Fare: PHP ${preview!.suggestedFare.toStringAsFixed(0)}'),
+                  Text('Estimated Distance: ${_preview!.distanceKm.toStringAsFixed(2)} km'),
+                  Text('Graph Distance: ${_preview!.graphDistanceKm.toStringAsFixed(2)} km'),
+                  Text('Snap Offsets: +${_preview!.startOffsetKm.toStringAsFixed(2)} +${_preview!.endOffsetKm.toStringAsFixed(2)} km'),
+                  Text('Estimated Time: ${_preview!.estimatedMinutes} min'),
+                  Text('Estimated Fare: PHP ${_preview!.suggestedFare.toStringAsFixed(0)}'),
                 ],
               ],
             ),

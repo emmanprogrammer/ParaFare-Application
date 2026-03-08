@@ -6,6 +6,7 @@ import '../data/repositories/dispatch_repository.dart';
 import '../data/repositories/dispatch_repository_impl.dart';
 import '../features/dispatch/graph/graph_data_sources.dart';
 import '../features/dispatch/graph/graph_snap_service.dart';
+import '../features/dispatch/graph/route_distance_service.dart';
 import '../features/dispatch/history/trip_history_store.dart';
 import '../features/dispatch/simulation/fare_calculator.dart';
 import 'services/location_service.dart';
@@ -46,4 +47,8 @@ final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async 
 final tripHistoryStoreProvider = FutureProvider<TripHistoryStore>((ref) async {
   final prefs = await ref.watch(sharedPreferencesProvider.future);
   return TripHistoryStore(prefs);
+});
+
+final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
+  return const RouteDistanceService();
 });

@@ -4,7 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/providers.dart';
 import '../../core/services/location_service.dart';
+import '../dispatch/graph/graph_data_sources.dart';
+import '../dispatch/graph/graph_models.dart';
+import '../dispatch/graph/graph_snap_service.dart';
+import '../dispatch/graph/route_distance_service.dart';
 import '../dispatch/simulation/fare_calculator.dart';
 import 'data/mvp_local_store.dart';
 import 'models/mvp_models.dart';
@@ -12,47 +17,77 @@ import 'models/mvp_models.dart';
 class MvpState {
   const MvpState({
     this.data = const MvpAppData(onboardingComplete: false),
+    this.graph,
     this.loading = true,
     this.error,
   });
 
   final MvpAppData data;
+  final GraphData? graph;
   final bool loading;
   final String? error;
 
   MvpState copyWith({
     MvpAppData? data,
+    GraphData? graph,
     bool? loading,
     String? error,
   }) {
     return MvpState(
       data: data ?? this.data,
+      graph: graph ?? this.graph,
       loading: loading ?? this.loading,
       error: error,
     );
   }
 }
 
-final mvpControllerProvider =
-    StateNotifierProvider<MvpController, MvpState>((ref) {
+final mvpControllerProvider = StateNotifierProvider<MvpController, MvpState>((ref) {
   final locationService = ref.watch(locationServiceProvider);
   final fareCalculator = ref.watch(fareCalculatorProvider);
-  return MvpController(locationService, fareCalculator)..initialize();
+  final graphDataSource = ref.watch(graphDataSourceProvider);
+  final snapService = ref.watch(graphSnapServiceProvider);
+  final routeDistanceService = ref.watch(routeDistanceServiceProvider);
+
+  return MvpController(
+    locationService,
+    fareCalculator,
+    graphDataSource,
+    snapService,
+    routeDistanceService,
+  )
+    ..initialize();
 });
 
 class MvpController extends StateNotifier<MvpState> {
-  MvpController(this._locationService, this._fareCalculator)
-      : super(const MvpState());
+  MvpController(
+    this._locationService,
+    this._fareCalculator,
+    this._graphDataSource,
+    this._snapService,
+    this._routeDistanceService,
+  ) : super(const MvpState());
 
   final LocationService _locationService;
   final FareCalculator _fareCalculator;
+  final GraphDataSource _graphDataSource;
+  final GraphSnapService _snapService;
+  final RouteDistanceService _routeDistanceService;
   late MvpLocalStore _store;
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _store = MvpLocalStore(prefs);
     final data = await _store.load();
-    state = state.copyWith(data: data, loading: false, error: null);
+
+    GraphData? graph;
+    try {
+      graph = await _graphDataSource.loadGraph();
+    } on Exception {
+      graph = null;
+    }
+
+    state = state.copyWith(data: data, graph: graph, loading: false, error: null);
   }
 
   Future<void> completeOnboarding(DriverProfile profile) async {
@@ -64,38 +99,55 @@ class MvpController extends StateNotifier<MvpState> {
     state = state.copyWith(data: data, error: null);
   }
 
-  bool isSlotOccupied(int slotIndex) =>
-      state.data.activeRides.containsKey(slotIndex);
-
-  RideRecord? activeRideForSlot(int slotIndex) =>
-      state.data.activeRides[slotIndex];
+  RideRecord? activeRideForSlot(int slotIndex) => state.data.activeRides[slotIndex];
 
   Future<Position> getCurrentPosition() => _locationService.getCurrentPosition();
 
-  FarePreview calculatePreview({
+  FarePreview? calculatePreview({
     required double originLat,
     required double originLng,
     required double destinationLat,
     required double destinationLng,
   }) {
-    final distanceKm = _haversineKm(
-      originLat,
-      originLng,
-      destinationLat,
-      destinationLng,
+    final graph = state.graph;
+    if (graph == null) {
+      return null;
+    }
+
+    final route = _routeDistanceService.calculate(
+      graph: graph,
+      startLat: originLat,
+      startLng: originLng,
+      endLat: destinationLat,
+      endLng: destinationLng,
+      snapService: _snapService,
     );
-    final estimatedMinutes = max(1, (distanceKm / 20 * 60).round());
+
+    if (route == null) {
+      return null;
+    }
+
+    final estimatedMinutes = max(1, (route.totalDistanceKm / 20 * 60).round());
     final fare = _fareCalculator.calculate(
-      distanceKm: distanceKm,
+      distanceKm: route.totalDistanceKm,
       applyDiscount: false,
       manualAdjustment: 0,
     );
 
     return FarePreview(
-      distanceKm: distanceKm,
+      distanceKm: route.totalDistanceKm,
       estimatedMinutes: estimatedMinutes,
       baseFare: fare.baseFare,
       suggestedFare: fare.finalFare,
+      graphDistanceKm: route.graphDistanceKm,
+      startOffsetKm: route.startOffsetKm,
+      endOffsetKm: route.endOffsetKm,
+      startSnapNodeId: route.startSnap.node.id,
+      endSnapNodeId: route.endSnap.node.id,
+      startSnapLat: route.startSnap.node.latitude,
+      startSnapLng: route.startSnap.node.longitude,
+      endSnapLat: route.endSnap.node.latitude,
+      endSnapLng: route.endSnap.node.longitude,
     );
   }
 
@@ -115,6 +167,11 @@ class MvpController extends StateNotifier<MvpState> {
       destinationLng: destinationLng,
     );
 
+    if (preview == null) {
+      state = state.copyWith(error: 'Unable to compute route on graph.');
+      return;
+    }
+
     final ride = RideRecord(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       slotIndex: slotIndex,
@@ -131,8 +188,7 @@ class MvpController extends StateNotifier<MvpState> {
       startedAtIso: DateTime.now().toIso8601String(),
     );
 
-    final active = Map<int, RideRecord>.from(state.data.activeRides)
-      ..[slotIndex] = ride;
+    final active = Map<int, RideRecord>.from(state.data.activeRides)..[slotIndex] = ride;
 
     final data = state.data.copyWith(activeRides: active);
     await _store.save(data);
@@ -160,11 +216,8 @@ class MvpController extends StateNotifier<MvpState> {
       isCompleted: true,
     );
 
-    final active = Map<int, RideRecord>.from(state.data.activeRides)
-      ..remove(slotIndex);
-    final completedRides = [completed, ...state.data.completedRides]
-        .take(200)
-        .toList(growable: false);
+    final active = Map<int, RideRecord>.from(state.data.activeRides)..remove(slotIndex);
+    final completedRides = [completed, ...state.data.completedRides].take(200).toList(growable: false);
 
     final data = state.data.copyWith(
       activeRides: active,
@@ -177,15 +230,13 @@ class MvpController extends StateNotifier<MvpState> {
 
   double todayEarnings() {
     final now = DateTime.now();
-    return state.data.completedRides
-        .where((ride) {
-          final completed = DateTime.tryParse(ride.completedAtIso ?? '');
-          return completed != null &&
-              completed.year == now.year &&
-              completed.month == now.month &&
-              completed.day == now.day;
-        })
-        .fold<double>(0, (sum, ride) => sum + ride.finalFare);
+    return state.data.completedRides.where((ride) {
+      final completed = DateTime.tryParse(ride.completedAtIso ?? '');
+      return completed != null &&
+          completed.year == now.year &&
+          completed.month == now.month &&
+          completed.day == now.day;
+    }).fold<double>(0, (sum, ride) => sum + ride.finalFare);
   }
 
   int todayTripCount() {
@@ -198,17 +249,6 @@ class MvpController extends StateNotifier<MvpState> {
           completed.day == now.day;
     }).length;
   }
-
-  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
-    const r = 6371.0;
-    final p1 = lat1 * pi / 180;
-    final p2 = lat2 * pi / 180;
-    final dp = (lat2 - lat1) * pi / 180;
-    final dl = (lon2 - lon1) * pi / 180;
-    final a =
-        sin(dp / 2) * sin(dp / 2) + cos(p1) * cos(p2) * sin(dl / 2) * sin(dl / 2);
-    return r * 2 * atan2(sqrt(a), sqrt(1 - a));
-  }
 }
 
 class FarePreview {
@@ -217,10 +257,28 @@ class FarePreview {
     required this.estimatedMinutes,
     required this.baseFare,
     required this.suggestedFare,
+    required this.graphDistanceKm,
+    required this.startOffsetKm,
+    required this.endOffsetKm,
+    required this.startSnapNodeId,
+    required this.endSnapNodeId,
+    required this.startSnapLat,
+    required this.startSnapLng,
+    required this.endSnapLat,
+    required this.endSnapLng,
   });
 
   final double distanceKm;
   final int estimatedMinutes;
   final double baseFare;
   final double suggestedFare;
+  final double graphDistanceKm;
+  final double startOffsetKm;
+  final double endOffsetKm;
+  final String startSnapNodeId;
+  final String endSnapNodeId;
+  final double startSnapLat;
+  final double startSnapLng;
+  final double endSnapLat;
+  final double endSnapLng;
 }

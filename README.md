@@ -4,6 +4,17 @@ Driver-first online MVP for ParaFare mobile testing on real phones.
 
 ## Current MVP Flow (phone-testable)
 
+## Routing Design Clarification
+
+- Road graph nodes/edges are internal only; normal users do **not** interact with graph nodes directly.
+- Users interact with map taps/GPS coordinates; the app snaps them internally to nearest graph nodes.
+- Total route distance includes:
+  - graph shortest-path distance between snapped nodes
+  - + start coordinate to snapped start-node offset
+  - + destination coordinate to snapped destination-node offset
+- Optional debug overlay can show snapped points for developers only.
+
+
 1. First launch onboarding (once only): welcome → role → driver registration → seat config.
 2. Driver dashboard: top online map + passenger slot cards.
 3. Empty slot: tap to add ride (origin/destination + route preview + estimated distance/time + fare).
@@ -121,6 +132,17 @@ Run from the project root (the folder containing `pubspec.yaml`):
 ```bash
 flutter pub get
 ```
+
+### 2.1) Quick sanity checks
+
+Before running on-device, you can verify setup with:
+
+```bash
+flutter analyze
+flutter test
+```
+
+If tests are still being added in your branch, `flutter analyze` is the minimum recommended check.
 
 ### 3) Configure Firebase
 
