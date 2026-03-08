@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/services/firebase_service.dart';
-import 'core/utils/app_router.dart';
+import 'core/router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
