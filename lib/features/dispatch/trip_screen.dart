@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../map/map_providers.dart';
-import '../map/map_view.dart';
-import 'trip_simulation_controller.dart';
+import 'package:parafare_application/features/map/map_providers.dart';
+import 'package:parafare_application/features/map/map_view.dart';
+import 'package:parafare_application/features/dispatch/trip_simulation_controller.dart';
 
 class TripScreen extends ConsumerWidget {
   const TripScreen({super.key});

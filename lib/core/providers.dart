@@ -2,14 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/repositories/dispatch_repository.dart';
-import '../data/repositories/dispatch_repository_impl.dart';
-import '../features/dispatch/graph/graph_data_sources.dart';
-import '../features/dispatch/graph/graph_snap_service.dart';
-import '../features/dispatch/graph/route_distance_service.dart';
-import '../features/dispatch/history/trip_history_store.dart';
-import '../features/dispatch/simulation/fare_calculator.dart';
-import 'services/location_service.dart';
+import 'package:parafare_application/data/repositories/dispatch_repository.dart';
+import 'package:parafare_application/data/repositories/dispatch_repository_impl.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_data_sources.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_snap_service.dart';
+import 'package:parafare_application/features/dispatch/graph/route_distance_service.dart';
+import 'package:parafare_application/features/dispatch/history/trip_history_store.dart';
+import 'package:parafare_application/features/dispatch/simulation/fare_calculator.dart';
+import 'package:parafare_application/core/services/location_service.dart';
 
 final firestoreProvider = Provider<FirebaseFirestore>((ref) {
   return FirebaseFirestore.instance;

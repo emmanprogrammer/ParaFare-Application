@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
-import '../simulation/tricycle_network.dart';
-import 'graph_models.dart';
+import 'package:parafare_application/features/dispatch/simulation/tricycle_network.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_models.dart';
 
 abstract class GraphDataSource {
   Future<GraphData> loadGraph();

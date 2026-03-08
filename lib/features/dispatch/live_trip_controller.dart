@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../core/providers.dart';
-import 'graph/graph_models.dart';
-import 'graph/graph_snap_service.dart';
-import 'history/trip_history_store.dart';
-import 'simulation/fare_calculator.dart';
-import 'simulation/pathfinding_service.dart';
+import 'package:parafare_application/core/providers.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_models.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_snap_service.dart';
+import 'package:parafare_application/features/dispatch/history/trip_history_store.dart';
+import 'package:parafare_application/features/dispatch/simulation/fare_calculator.dart';
+import 'package:parafare_application/features/dispatch/simulation/pathfinding_service.dart';
 
 class LiveTripState {
   const LiveTripState({

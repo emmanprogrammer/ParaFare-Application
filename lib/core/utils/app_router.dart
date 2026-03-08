@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/dispatch/live_trip_screen.dart';
-import '../../features/dispatch/trip_screen.dart';
-import '../../features/driver/driver_home_screen.dart';
-import '../../features/mode/mode_selection_screen.dart';
-import '../../features/mvp/screens/add_ride_screen.dart';
-import '../../features/mvp/screens/driver_dashboard_screen.dart';
-import '../../features/mvp/screens/earnings_history_screen.dart';
-import '../../features/mvp/screens/final_fare_screen.dart';
-import '../../features/mvp/screens/launch_gate_screen.dart';
-import '../../features/mvp/screens/onboarding_driver_registration_screen.dart';
-import '../../features/mvp/screens/onboarding_role_screen.dart';
-import '../../features/mvp/screens/onboarding_seat_config_screen.dart';
-import '../../features/mvp/screens/onboarding_welcome_screen.dart';
-import '../../features/mvp/screens/ride_manage_screen.dart';
-import '../../features/passenger/passenger_home_screen.dart';
+import 'package:parafare_application/features/dispatch/live_trip_screen.dart';
+import 'package:parafare_application/features/dispatch/trip_screen.dart';
+import 'package:parafare_application/features/driver/driver_home_screen.dart';
+import 'package:parafare_application/features/mode/mode_selection_screen.dart';
+import 'package:parafare_application/features/mvp/screens/add_ride_screen.dart';
+import 'package:parafare_application/features/mvp/screens/driver_dashboard_screen.dart';
+import 'package:parafare_application/features/mvp/screens/earnings_history_screen.dart';
+import 'package:parafare_application/features/mvp/screens/final_fare_screen.dart';
+import 'package:parafare_application/features/mvp/screens/launch_gate_screen.dart';
+import 'package:parafare_application/features/mvp/screens/onboarding_driver_registration_screen.dart';
+import 'package:parafare_application/features/mvp/screens/onboarding_role_screen.dart';
+import 'package:parafare_application/features/mvp/screens/onboarding_seat_config_screen.dart';
+import 'package:parafare_application/features/mvp/screens/onboarding_welcome_screen.dart';
+import 'package:parafare_application/features/mvp/screens/ride_manage_screen.dart';
+import 'package:parafare_application/features/passenger/passenger_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(

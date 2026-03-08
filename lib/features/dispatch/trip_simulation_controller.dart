@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../core/providers.dart';
-import 'graph/graph_models.dart';
-import '../map/map_providers.dart';
-import 'simulation/fare_calculator.dart';
-import 'simulation/pathfinding_service.dart';
-import 'simulation/tricycle_network.dart';
+import 'package:parafare_application/core/providers.dart';
+import 'package:parafare_application/features/dispatch/graph/graph_models.dart';
+import 'package:parafare_application/features/map/map_providers.dart';
+import 'package:parafare_application/features/dispatch/simulation/fare_calculator.dart';
+import 'package:parafare_application/features/dispatch/simulation/pathfinding_service.dart';
+import 'package:parafare_application/features/dispatch/simulation/tricycle_network.dart';
 
 class TripSimulationState {
   const TripSimulationState({

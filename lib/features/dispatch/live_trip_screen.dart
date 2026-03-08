@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../map/map_view.dart';
-import 'live_trip_controller.dart';
+import 'package:parafare_application/features/map/map_view.dart';
+import 'package:parafare_application/features/dispatch/live_trip_controller.dart';
 
 class LiveTripScreen extends ConsumerWidget {
   const LiveTripScreen({super.key});
