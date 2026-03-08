@@ -1,6 +1,20 @@
 # ParaFare Application
 
-Production-ready Flutter scaffold for a tricycle dispatch and fare platform with Passenger and Driver modes.
+Driver-first online MVP for ParaFare mobile testing on real phones.
+
+## Current MVP Flow (phone-testable)
+
+1. First launch onboarding (once only): welcome → role → driver registration → seat config.
+2. Driver dashboard: top online map + passenger slot cards.
+3. Empty slot: tap to add ride (origin/destination + route preview + estimated distance/time + fare).
+4. Occupied slot: tap to manage and finish ride.
+5. Final fare step: manual adjustment then confirm.
+6. Earnings/history: daily summary + completed rides stored locally.
+
+Fare rule used everywhere in MVP:
+- PHP 15 for first 4 km
+- + ceil(distanceKm - 4) beyond 4 km
+- clamped to PHP 10–100 after adjustment
 
 ## What is implemented now
 
@@ -25,7 +39,7 @@ This mode lets you test the core function set you requested first:
    - Manual adjustment with final fare clamped to PHP 10–100
 
 
-## Live Trip Mode (hardware-style capture)
+## Legacy / Extended Flows
 
 This mode mirrors the hardware trip logic sequence:
 
