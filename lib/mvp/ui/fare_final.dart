@@ -41,6 +41,21 @@ class _FinalFareScreenState extends ConsumerState<FinalFareScreen> {
           destinationLat: ride.destinationLat,
           destinationLng: ride.destinationLng,
         );
+    if (preview == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Finalize Fare')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Fare preview is unavailable for this ride. Please go back and reselect route points.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     final finalFare = (preview.suggestedFare + adjustment).clamp(10, 100).toDouble();
 
     return Scaffold(
