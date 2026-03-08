@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    {"id": "plaza", "latitude": 6.1162, "longitude": 125.1719},
+    {"id": "market", "latitude": 6.1129, "longitude": 125.1752},
+    {"id": "terminal", "latitude": 6.1057, "longitude": 125.1685},
+    {"id": "hospital", "latitude": 6.1214, "longitude": 125.1648},
+    {"id": "school", "latitude": 6.1248, "longitude": 125.1770},
+    {"id": "seaport", "latitude": 6.0905, "longitude": 125.1543}
+  ],
+  "edges": [
+    {"fromNodeId": "plaza", "toNodeId": "market", "distanceKm": 1.2},
+    {"fromNodeId": "plaza", "toNodeId": "hospital", "distanceKm": 1.5},
+    {"fromNodeId": "hospital", "toNodeId": "school", "distanceKm": 1.7},
+    {"fromNodeId": "plaza", "toNodeId": "terminal", "distanceKm": 2.0},
+    {"fromNodeId": "market", "toNodeId": "terminal", "distanceKm": 1.6},
+    {"fromNodeId": "terminal", "toNodeId": "seaport", "distanceKm": 3.1},
+    {"fromNodeId": "market", "toNodeId": "school", "distanceKm": 2.5},
+    {"fromNodeId": "hospital", "toNodeId": "market", "distanceKm": 1.8}
+  ]
+}
