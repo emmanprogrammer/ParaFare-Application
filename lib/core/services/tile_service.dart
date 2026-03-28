@@ -26,7 +26,7 @@ class TileService {
         flush: true,
       );
       return file.path;
-    } on Exception {
+    } catch (_) {
       return null;
     }
   }
