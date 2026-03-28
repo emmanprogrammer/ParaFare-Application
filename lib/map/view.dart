@@ -29,7 +29,7 @@ class MapView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locationAsync = ref.watch(locationStreamProvider);
-    final selectedMode = mapMode ?? ref.watch(mapModeProvider);
+    final MapMode selectedMode = mapMode ?? ref.watch(mapModeProvider);
     final pmTilesProviderAsync = ref.watch(pmTilesTileProviderProvider);
 
     return FlutterMap(
