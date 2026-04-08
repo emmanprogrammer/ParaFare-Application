@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Generate Dart tricycle network data from OSM road network.
+
+Usage examples:
+  python scripts/generate_gensan_network.py --from-overpass --anchor-spacing-meters 40
+  python scripts/generate_gensan_network.py --from-file overpass_response.json --anchor-spacing-meters 30
+
+If --from-overpass is blocked, fetch the JSON on your own machine and use --from-file.
+"""
+
+import argparse
+import json
+import math
+import re
+import sys
+import urllib.parse
+import urllib.request
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+GENSAN_BBOX = (6.0000, 125.0500, 6.1900, 125.2600)  # south,west,north,east
+
+ALLOWED_HIGHWAYS = {
+    "motorway",
+    "trunk",
+    "primary",
+    "secondary",
+    "tertiary",
+    "unclassified",
+    "residential",
+    "service",
+    "living_street",
+    "road",
+}
+
+
+@dataclass
+class Node:
+    node_id: int
+    lat: float
+    lon: float
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return r * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+
+
+def build_query(bbox):
+    s, w, n, e = bbox
+    return f"""
+[out:json][timeout:180];
+(
+  way["highway"]({s},{w},{n},{e});
+);
+(._;>;);
+out body;
+""".strip()
+
+
+def fetch_osm_data(bbox):
+    query = build_query(bbox)
+    data = urllib.parse.urlencode({"data": query}).encode("utf-8")
+    req = urllib.request.Request(OVERPASS_URL, data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def normalize_id(name: str, idx: int) -> str:
+    base = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
+    if not base:
+        base = f"node-{idx}"
+    return f"n-{idx}-{base[:32]}"
+
+
+def build_network(payload, anchor_spacing_meters: float):
+    elements = payload.get("elements", [])
+    raw_nodes = {}
+    ways = []
+    for el in elements:
+        t = el.get("type")
+        if t == "node":
+            raw_nodes[el["id"]] = Node(el["id"], el["lat"], el["lon"])
+        elif t == "way":
+            hw = (el.get("tags") or {}).get("highway")
+            if hw in ALLOWED_HIGHWAYS and len(el.get("nodes", [])) >= 2:
+                ways.append(el)
+
+    node_use_count = defaultdict(int)
+    for way in ways:
+        for nid in way["nodes"]:
+            node_use_count[nid] += 1
+
+    # Anchors = intersections + way endpoints + periodic sampled points.
+    # This mirrors your firmware approach of using many smaller graph nodes.
+    anchor_ids = {nid for nid, count in node_use_count.items() if count >= 2 and nid in raw_nodes}
+
+    spacing_km = max(0.01, anchor_spacing_meters / 1000.0)
+
+    for way in ways:
+        nids = [nid for nid in way["nodes"] if nid in raw_nodes]
+        if not nids:
+            continue
+
+        anchor_ids.add(nids[0])
+        anchor_ids.add(nids[-1])
+
+        last_anchor = nids[0]
+        acc = 0.0
+        prev = nids[0]
+        for cur in nids[1:]:
+            a = raw_nodes[prev]
+            b = raw_nodes[cur]
+            acc += haversine_km(a.lat, a.lon, b.lat, b.lon)
+
+            # keep existing intersections immediately
+            if cur in anchor_ids:
+                last_anchor = cur
+                acc = 0.0
+            elif acc >= spacing_km:
+                anchor_ids.add(cur)
+                last_anchor = cur
+                acc = 0.0
+            prev = cur
+
+    kept = sorted(anchor_ids)
+    node_defs = []
+    for idx, nid in enumerate(kept):
+        n = raw_nodes[nid]
+        name = f"Node {idx + 1}"
+        node_defs.append((nid, normalize_id(name, idx + 1), name, n.lat, n.lon))
+
+    by_nid = {nid: did for nid, did, *_ in node_defs}
+    edge_map = {}
+
+    for way in ways:
+        nids = [nid for nid in way["nodes"] if nid in raw_nodes]
+        if len(nids) < 2:
+            continue
+
+        acc_dist = 0.0
+        last_anchor = None
+        prev = nids[0]
+        if prev in anchor_ids:
+            last_anchor = prev
+
+        for cur in nids[1:]:
+            a = raw_nodes[prev]
+            b = raw_nodes[cur]
+            acc_dist += haversine_km(a.lat, a.lon, b.lat, b.lon)
+
+            if cur in anchor_ids:
+                if last_anchor is not None and last_anchor != cur:
+                    u = by_nid[last_anchor]
+                    v = by_nid[cur]
+                    key = tuple(sorted((u, v)))
+                    old = edge_map.get(key)
+                    if old is None or acc_dist < old:
+                        edge_map[key] = acc_dist
+                last_anchor = cur
+                acc_dist = 0.0
+            prev = cur
+
+    edge_defs = sorted((u, v, d) for (u, v), d in edge_map.items() if d > 0)
+    return node_defs, edge_defs
+
+
+def write_dart(out_path: Path, node_defs, edge_defs, anchor_spacing_meters: float):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as f:
+        f.write("// GENERATED FILE. DO NOT EDIT.\n")
+        f.write("// Generated by scripts/generate_gensan_network.py from OpenStreetMap data.\n")
+        f.write(f"// Anchor spacing: {anchor_spacing_meters:.1f} meters.\n\n")
+        f.write("import '../tricycle_network.dart';\n\n")
+        f.write("class GensanNetworkData {\n")
+        f.write("  static const List<TricycleNode> nodes = [\n")
+        for _nid, did, name, lat, lon in node_defs:
+            f.write(f"    TricycleNode(id: '{did}', name: '{name}', latitude: {lat:.6f}, longitude: {lon:.6f}),\n")
+        f.write("  ];\n\n")
+        f.write("  static const List<TricycleEdge> edges = [\n")
+        for u, v, d in edge_defs:
+            f.write(f"    TricycleEdge(fromNodeId: '{u}', toNodeId: '{v}', distanceKm: {d:.3f}),\n")
+        f.write("  ];\n")
+        f.write("}\n")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--from-overpass", action="store_true")
+    source.add_argument("--from-file", type=Path)
+    parser.add_argument(
+        "--anchor-spacing-meters",
+        type=float,
+        default=40.0,
+        help="Smaller value = denser/smaller nodes along roads (default: 40m)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("lib/features/dispatch/simulation/generated/gensan_network_data.dart"),
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    if args.from_overpass:
+        payload = fetch_osm_data(GENSAN_BBOX)
+    else:
+        payload = json.loads(args.from_file.read_text(encoding="utf-8"))
+
+    nodes, edges = build_network(payload, anchor_spacing_meters=args.anchor_spacing_meters)
+    write_dart(args.out, nodes, edges, anchor_spacing_meters=args.anchor_spacing_meters)
+    print(
+        f"Generated {len(nodes)} nodes and {len(edges)} edges"
+        f" (anchor spacing {args.anchor_spacing_meters:.1f}m) -> {args.out}"
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
